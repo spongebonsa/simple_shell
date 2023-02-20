@@ -1,44 +1,29 @@
-#include "main.h"
-/**
- * main - main loop of shell
- * Return: 0 on success
- */
-int main(void)
-{
-	char *line, *path, *fullpath;
-	char **tokens;
-	int flag, builtin_status, child_status;
-	struct stat buf;
+#include "hsh.h"
 
-	while (TRUE)
+/**
+ * main - entry point
+ * @ac: arg count
+ * @av: arg vector
+ *
+ * Return: 0 on success, 1 on error
+ */
+int main(int ac, char **av)
+{
+	info_t info[] = { INFO_INIT };
+
+	if (ac == 2)
 	{
-		prompt(STDIN_FILENO, buf);
-		line = _getline(stdin);
-tokens = stringtotoken(line);
-if (tokens[0] == NULL)
-continue;
-builtin_status = builtin_execute(tokens);
-		if (builtin_status == 0 || builtin_status == -1)
+		info->readfd = open_file(info, av[1], 0);
+		if (info->readfd == -1)
 		{
-			free(tokens);
-			free(line);
+			free_info(info, 1);
+			exit(info->err_num);
 		}
-		if (builtin_status == 0)
-			continue;
-		if (builtin_status == -1)
-			_exit(EXIT_SUCCESS);
-		flag = 0; /* 0 if full_path is not malloc'd */
-		path = _getenv("PATH");
-		fullpath = _which(tokens[0], fullpath, path);
-		if (fullpath == NULL)
-			fullpath = tokens[0];
-		else
-			flag = 1; /* if fullpath was malloc'd, flag to free */
-		child_status = child(fullpath, tokens);
-		if (child_status == -1)
-			errors(2);
-		free_all(tokens, path, line, fullpath, flag);
 	}
-	return (0);
+	populate_env_list(info);
+	read_history(info);
+	read_startup_file(info);
+	hsh(info, av);
+	return (EXIT_SUCCESS);
 }
 

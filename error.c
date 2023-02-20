@@ -1,32 +1,37 @@
-#include "main.h"
+#include "hsh.h"
 
 /**
- * errors - prints errors based on case
- * @error: error number associated with perror statement
- * Return: void
+ * print_error - prints an error message
+ * @info: the parameter & return info struct
+ * @estr: string containing specified error type
+ * Return: 0 if no numbers in string, converted number otherwise
+ *        -1 on error
  */
-void errors(int error)
+void print_error(info_t *info, char *estr)
 {
-	switch (error)
-	{
-	case 1: /* writes fork error to stderr */
-		write(STDERR_FILENO, ERR_FORK, _strlen(ERR_FORK));
-		perror("Error");
-		break;
+	_eputs(info->fname);
+	_eputs(": ");
+	print_d(info->line_count, STDERR_FILENO);
+	_eputs(": ");
+	_eputs(info->argv[0]);
+	_eputs(": ");
+	_eputs(estr);
+}
 
-	case 2: /* writes execve error to stderr */
-		perror("Error");
-		break;
-
-	case 3: /* writes malloc error to stderr */
-		write(STDERR_FILENO, ERR_MALLOC, _strlen(ERR_MALLOC));
-		break;
-	case 4: /* writes empty path error to stderr */
-		write(STDERR_FILENO, ERR_PATH, _strlen(ERR_PATH));
-		break;
-
-	default:
-		return;
-	}
+/**
+ * print_error_noarg - prints an error message w/o arg
+ * @info: the parameter & return info struct
+ * @estr: string containing specified error type
+ * Return: 0 if no numbers in string, converted number otherwise
+ *        -1 on error
+ */
+void print_error_noarg(info_t *info, char *estr)
+{
+	_eputs(info->fname);
+	_eputs(": ");
+	print_d(info->line_count, STDERR_FILENO);
+	_eputs(": ");
+	_eputs(estr);
+	_eputchar(BUF_FLUSH);
 }
 
