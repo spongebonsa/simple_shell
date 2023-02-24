@@ -1,136 +1,130 @@
-#include "hsh.h"
+#include "main.h"
 
 /**
- * get_environ - returns the string array copy of our environ
- * @info: Structure containing potential arguments. Used to maintain
- *          constant function prototype.
- * Return: Always 0
+ * copy_info - copies info to create
+ * a new env or alias
+ * @name: name (env or alias)
+ * @value: value (env or alias)
+ *
+ * Return: new env or alias.
  */
-char **get_environ(info_t *info)
+char *copy_info(char *name, char *value)
 {
-	if (!info->environ || info->env_changed)
-	{
-		info->environ = list_to_strings(info->env);
-		info->env_changed = 0;
-	}
+	char *new;
+	int len_name, len_value, len;
 
-	return (info->environ);
+	len_name = _strlen(name);
+	len_value = _strlen(value);
+	len = len_name + len_value + 2;
+	new = malloc(sizeof(char) * (len));
+	_strcpy(new, name);
+	_strcat(new, "=");
+	_strcat(new, value);
+	_strcat(new, "\0");
+
+	return (new);
 }
 
 /**
- * _unsetenv - Remove an environment variable
- * @info: Structure containing potential arguments. Used to maintain
- *        constant function prototype.
- *  Return: 1 on delete, 0 otherwise
- * @var: the string env var property
+ * set_env - sets an environment variable
+ *
+ * @name: name of the environment variable
+ * @value: value of the environment variable
+ * @datash: data structure (environ)
+ * Return: no return
  */
-int _unsetenv(info_t *info, char *var)
+void set_env(char *name, char *value, data_shell *datash)
 {
-	list_t *node = info->env;
-	size_t i = 0;
-	char *p;
+	int i;
+	char *var_env, *name_env;
 
-	if (!node || !var)
-		return (0);
-
-	while (node)
+	for (i = 0; datash->_environ[i]; i++)
 	{
-		p = starts_with(node->str, var);
-		if (p && *p == '=')
+		var_env = _strdup(datash->_environ[i]);
+		name_env = _strtok(var_env, "=");
+		if (_strcmp(name_env, name) == 0)
 		{
-			info->env_changed = delete_node_at_index(&(info->env), i);
-			i = 0;
-			node = info->env;
-			continue;
+			free(datash->_environ[i]);
+			datash->_environ[i] = copy_info(name_env, value);
+			free(var_env);
+			return;
 		}
-		node = node->next;
-		i++;
+		free(var_env);
 	}
-	return (info->env_changed);
+
+	datash->_environ = _reallocdp(datash->_environ, i, sizeof(char *) * (i + 2));
+	datash->_environ[i] = copy_info(name, value);
+	datash->_environ[i + 1] = NULL;
 }
 
 /**
- * _setenv - Initialize a new environment variable,
- *             or modify an existing one
- * @info: Structure containing potential arguments. Used to maintain
- *        constant function prototype.
- * @var: the string env var property
- * @value: the string env var value
- *  Return: Always 0
+ * _setenv - compares env variables names
+ * with the name passed.
+ * @datash: data relevant (env name and env value)
+ *
+ * Return: 1 on success.
  */
-int _setenv(info_t *info, char *var, char *value)
+int _setenv(data_shell *datash)
 {
-	char *buf = NULL;
-	list_t *node;
-	char *p;
 
-	if (!var || !value)
-		return (0);
-
-	buf = malloc(_strlen(var) + _strlen(value) + 2);
-	if (!buf)
+	if (datash->args[1] == NULL || datash->args[2] == NULL)
+	{
+		get_error(datash, -1);
 		return (1);
-	_strcpy(buf, var);
-	_strcat(buf, "=");
-	_strcat(buf, value);
-	node = info->env;
-	while (node)
-	{
-		p = starts_with(node->str, var);
-		if (p && *p == '=')
-		{
-			free(node->str);
-			node->str = buf;
-			info->env_changed = 1;
-			return (0);
-		}
-		node = node->next;
 	}
-	add_node_end(&(info->env), buf, 0);
-	free(buf);
-	info->env_changed = 1;
-	return (0);
+
+	set_env(datash->args[1], datash->args[2], datash);
+
+	return (1);
 }
 
 /**
- * print_prompt - prints PS1 if exists
- * @info: info struct
- * Return: void
+ * _unsetenv - deletes a environment variable
+ *
+ * @datash: data relevant (env name)
+ *
+ * Return: 1 on success.
  */
-void print_prompt(info_t *info)
+int _unsetenv(data_shell *datash)
 {
-	char hostname[WRITE_BUF_SIZE + 1];
-	char *_PS1 = NULL, *prompt = NULL;
+	char **realloc_environ;
+	char *var_env, *name_env;
+	int i, j, k;
 
-	prompt = _getenv(info, "PS1=");
-	if (!prompt)
-		_puts("$ ");
-	else
+	if (datash->args[1] == NULL)
 	{
-		if (_strcmp(prompt, "\\!") == 0)
-			_PS1 = convert_number(info->histcount, 10, 0);
-		else if (_strcmp(prompt, "\\a") == 0)
-			_PS1 = "\a";
-		else if (_strcmp(prompt, "\\d") == 0)
-			_PS1 = create_date();
-		else if (_strcmp(prompt, "\\H") == 0)
-		{
-			if (gethostname(hostname, WRITE_BUF_SIZE) == 0)
-				_PS1 = hostname;
-			else
-				perror("gethostname");
-		}
-		else if (_strcmp(prompt, "\\n") == 0)
-			_PS1 = "\n";
-		else if (_strcmp(prompt, "\\s") == 0)
-			_PS1 = "-hsh";
-		else if (_strcmp(prompt, "\\u") == 0)
-			_PS1 = _getenv(info, "USER=");
-		else if (_strcmp(prompt, "\\w") == 0)
-			_PS1 = _getenv(info, "PWD=");
-		else
-			_puts(prompt);
-		_puts(_PS1);
+		get_error(datash, -1);
+		return (1);
 	}
+	k = -1;
+	for (i = 0; datash->_environ[i]; i++)
+	{
+		var_env = _strdup(datash->_environ[i]);
+		name_env = _strtok(var_env, "=");
+		if (_strcmp(name_env, datash->args[1]) == 0)
+		{
+			k = i;
+		}
+		free(var_env);
+	}
+	if (k == -1)
+	{
+		get_error(datash, -1);
+		return (1);
+	}
+	realloc_environ = malloc(sizeof(char *) * (i));
+	for (i = j = 0; datash->_environ[i]; i++)
+	{
+		if (i != k)
+		{
+			realloc_environ[j] = datash->_environ[i];
+			j++;
+		}
+	}
+	realloc_environ[j] = NULL;
+	free(datash->_environ[k]);
+	free(datash->_environ);
+	datash->_environ = realloc_environ;
+	return (1);
 }
 
